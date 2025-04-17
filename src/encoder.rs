@@ -1,5 +1,6 @@
 use crate::mapping;
 use crate::symbol;
+use crate::CodedSymbol;
 
 /// Constant for block size. 
 /// As it can be computationally expensive to iterate over the set, it makes sense to generate
@@ -24,18 +25,19 @@ where
     set_iterator: I,
 }
 
-// It might be nice to 'peel' the symbols out as an iterator
-// impl<T, I> Iterator for RatelessIBLT<T, I>
-// where
-//     T: symbol::Symbol,
-//     I: IntoIterator<Item = T> + Clone,
-// {
-//     type Item = T;
-// 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         todo!();
-//     }
-// }
+//
+ impl<T, I> Iterator for RatelessIBLT<T, I>
+ where
+     T: symbol::Symbol,
+     I: IntoIterator<Item = T> + Clone,
+ {
+     type Item = CodedSymbol<T>;
+ 
+     fn next(&mut self) -> Option<Self::Item> {
+        self.extend_coded_symbols(0); // This does nothing if we already have some coded symbols
+        self.coded_symbols.clone().into_iter().next()
+     }
+ }
 
 impl<T, I> RatelessIBLT<T, I>
 where
@@ -90,7 +92,7 @@ where
     ///
     /// It is the responsibility of the calling code to create a new RatelessIBLT if the set changes.
     pub fn new(set_iterator: I) -> Self {
-        let mut riblt = RatelessIBLT {
+        let riblt = RatelessIBLT {
             coded_symbols: Vec::new(),
             set_iterator,
         };
