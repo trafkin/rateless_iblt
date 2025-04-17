@@ -19,6 +19,7 @@ pub const BLOCK_SIZE: usize = 1024;
 /// The managed version will generate coded symbols as needed (for efficiencey, it will generate a 'block' of coded symbols at a time)
 /// The unmanaged version will be used whereever we don't have access to the set
 ///
+#[derive(Clone)]
 pub struct RatelessIBLT<T, I>
 where
     T: symbol::Symbol,
