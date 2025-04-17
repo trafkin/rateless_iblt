@@ -24,33 +24,56 @@ where
     T: symbol::Symbol,
     I: IntoIterator<Item = T> + Clone,
 {
-    pub coded_symbols: Vec<symbol::CodedSymbol<T>>,
+    coded_symbols: Vec<symbol::CodedSymbol<T>>,
     set_iterator: I,
+
 }
 
-impl<T,I> Deref for RatelessIBLT<T, I>
-where
+
+ impl<T, I> IntoIterator for RatelessIBLT<T, I>
+ where
      T: symbol::Symbol,
      I: IntoIterator<Item = T> + Clone,
-{
-    type Target = Vec<CodedSymbol<T>>;
+ {
 
-    fn deref(&self) -> &Self::Target {
-        &self.coded_symbols
+     type Item = CodedSymbol<T>;
+     type IntoIter = IntoIter<T,I>;
+ 
+     fn into_iter(self) -> IntoIter<T,I> {
+        IntoIter {
+            last_index: 0,
+            irblt: Box::new(self)
+        }
+     }
+ }
+
+
+pub struct IntoIter<
+    T: symbol::Symbol,
+    I: IntoIterator<Item = T> + Clone >
+    {
+        irblt: Box<RatelessIBLT<T,I>>,
+        last_index: usize,
+    }
+
+impl<T,I> Iterator for IntoIter<T,I>
+where
+    T: symbol::Symbol,
+    I: IntoIterator<Item = T> + Clone,
+{
+    type Item=CodedSymbol<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.last_index > self.irblt.set_iterator.clone().into_iter().count() {
+            None
+        } else {
+            let it= Some(self.irblt.get_coded_symbol(self.last_index).clone());
+            self.last_index += 1;
+            it
+        }
     }
 }
 
- //impl<T, I> Iterator for RatelessIBLT<T, I>
- //where
-     //T: symbol::Symbol,
-     //I: IntoIterator<Item = T> + Clone,
- //{
-     //type Item = CodedSymbol<T>;
- 
-     //fn next(&mut self) -> Option<Self::Item> {
-        //self.set_iterator.
-     //}
- //}
 
 impl<T, I> RatelessIBLT<T, I>
 where
@@ -346,6 +369,31 @@ pub fn is_empty<T: symbol::Symbol>(block: &Vec<symbol::CodedSymbol<T>>) -> bool 
 mod tests {
     use super::*;
     use crate::test_helpers::SimpleSymbol;
+
+    #[test]
+    fn test_riblt_into_iter() {
+        use std::collections::HashSet;
+
+        let items_local: HashSet<SimpleSymbol> = HashSet::from([
+            SimpleSymbol { value: 7 },
+            SimpleSymbol { value: 15 },
+            SimpleSymbol { value: 16 },
+            SimpleSymbol { value: 2 },
+            SimpleSymbol { value: 1 },
+            SimpleSymbol { value: 5 },
+            SimpleSymbol { value: 17 },
+            SimpleSymbol { value: 2222 },
+        ]);
+
+        let iblt_local = RatelessIBLT::new(items_local.clone());
+
+        let mut temp_symbols: Vec<CodedSymbol<SimpleSymbol>> = Vec::new();
+
+        for cs in iblt_local.into_iter() {
+            temp_symbols.push(cs.clone());
+        }
+        assert_eq!(items_local.len()+1, temp_symbols.len())
+    }
 
     #[test]
     fn test_collapsing() {
