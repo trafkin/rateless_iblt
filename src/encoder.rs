@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::mapping;
 use crate::symbol;
 use crate::CodedSymbol;
@@ -16,6 +18,7 @@ pub const BLOCK_SIZE: usize = 1024;
 /// It is expected that the managed version will be used when we have access to the set
 /// The managed version will generate coded symbols as needed (for efficiencey, it will generate a 'block' of coded symbols at a time)
 /// The unmanaged version will be used whereever we don't have access to the set
+///
 pub struct RatelessIBLT<T, I>
 where
     T: symbol::Symbol,
@@ -25,19 +28,29 @@ where
     set_iterator: I,
 }
 
-//
- impl<T, I> Iterator for RatelessIBLT<T, I>
- where
+impl<T,I> Deref for RatelessIBLT<T, I>
+where
      T: symbol::Symbol,
      I: IntoIterator<Item = T> + Clone,
- {
-     type Item = CodedSymbol<T>;
+{
+    type Target = Vec<CodedSymbol<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.coded_symbols
+    }
+}
+
+ //impl<T, I> Iterator for RatelessIBLT<T, I>
+ //where
+     //T: symbol::Symbol,
+     //I: IntoIterator<Item = T> + Clone,
+ //{
+     //type Item = CodedSymbol<T>;
  
-     fn next(&mut self) -> Option<Self::Item> {
-        self.extend_coded_symbols(0); // This does nothing if we already have some coded symbols
-        self.coded_symbols.clone().into_iter().next()
-     }
- }
+     //fn next(&mut self) -> Option<Self::Item> {
+        //self.set_iterator.
+     //}
+ //}
 
 impl<T, I> RatelessIBLT<T, I>
 where
@@ -73,6 +86,7 @@ where
                 self.coded_symbols[i].apply(&item, symbol::Direction::Add);
             }
         }
+
     }
 
     /// Returns the coded symbol at the provided index.
@@ -171,18 +185,18 @@ where
     pub coded_symbols: Vec<symbol::CodedSymbol<T>>,
 }
 
-// It might be nice to 'peel' the symbols out as an iterator
-// impl<T> Iterator for UnmanagedRatelessIBLT<T>
-// where
-//     T: symbol::Symbol,
-// {
-//     type Item = T;
-// 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         //TODO
-//         None
-//     }
-// }
+
+impl<T> Deref for UnmanagedRatelessIBLT<T>
+where
+     T: symbol::Symbol,
+{
+    type Target = Vec<CodedSymbol<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.coded_symbols
+    }
+}
+
 impl<T> UnmanagedRatelessIBLT<T>
 where
     T: symbol::Symbol,
