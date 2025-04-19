@@ -2,7 +2,7 @@ mod encoder;
 mod mapping;
 mod symbol;
 
-pub use encoder::{RatelessIBLT, UnmanagedRatelessIBLT};
+pub use encoder::{RatelessIBLT, UnmanagedRatelessIBLT,Generator};
 pub use mapping::RandomMapping;
 pub use symbol::{Symbol, CodedSymbol, PeelableResult::*};
 
