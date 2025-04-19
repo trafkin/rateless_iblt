@@ -34,7 +34,7 @@ where
 
 pub trait Generator {
     type Item<'a>: 'a where Self: 'a;
-    fn gen<'a>(&'a mut self) -> Option<Self::Item<'a>>;
+    fn generate<'a>(&'a mut self) -> Option<Self::Item<'a>>;
 }
 
 impl<T,I> Generator for RatelessIBLT<T,I> 
@@ -47,7 +47,7 @@ impl<T,I> Generator for RatelessIBLT<T,I>
     type Item<'a>=&'a CodedSymbol<T>;
 
 
-    fn gen<'a>(&'a mut self) -> Option<Self::Item<'a>> {
+    fn generate<'a>(&'a mut self) -> Option<Self::Item<'a>> {
         if self.last_index > self.set_iterator.clone().into_iter().count() {
             None
         } else {
@@ -451,7 +451,7 @@ mod tests {
 
         let mut temp_symbols: Vec<CodedSymbol<SimpleSymbol>> = Vec::new();
 
-        while let Some(cs) =  iblt_local.gen() {
+        while let Some(cs) =  iblt_local.generate() {
             dbg!(&cs);
             temp_symbols.push(cs.clone());
         }
