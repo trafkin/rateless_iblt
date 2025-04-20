@@ -31,7 +31,7 @@ where
 }
 
 
-pub trait Generator {
+pub trait Iterable {
     type Item<'a>: 'a where Self: 'a;
     fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;
 }
@@ -101,7 +101,7 @@ where
         }
     }
 }
-impl<T,I> Generator for IntoIter<T,I>
+impl<T,I> Iterable for IntoIter<T,I>
 where
     for<'a> T: 'a + symbol::Symbol,
     for<'a> I: 'a + IntoIterator<Item = T> + Iterator + Clone,
