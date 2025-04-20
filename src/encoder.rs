@@ -27,36 +27,35 @@ where
 {
     pub coded_symbols: Vec<symbol::CodedSymbol<T>>,
     set_iterator: I,
-    last_index: usize
 
 }
 
 
 pub trait Generator {
     type Item<'a>: 'a where Self: 'a;
-    fn generate<'a>(&'a mut self) -> Option<Self::Item<'a>>;
+    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;
 }
 
-impl<T,I> Generator for RatelessIBLT<T,I> 
-    where
-     for <'a> T: 'a + symbol::Symbol,
-     for <'a> I: 'a + IntoIterator<Item = T> + Clone,
- {
-    //type Item<'a> = &'a T;
+//impl<T,I> Generator for RatelessIBLT<T,I> 
+    //where
+     //for <'a> T: 'a + symbol::Symbol,
+     //for <'a> I: 'a + IntoIterator<Item = T> + Clone,
+ //{
+    ////type Item<'a> = &'a T;
 
-    type Item<'a>=&'a CodedSymbol<T>;
+    //type Item<'a>=&'a CodedSymbol<T>;
 
 
-    fn generate<'a>(&'a mut self) -> Option<Self::Item<'a>> {
-        if self.last_index > self.set_iterator.clone().into_iter().count() {
-            None
-        } else {
-            self.last_index += 1;
-            let it= Some(self.get_coded_symbol_ref(self.last_index-1));
-            it
-        }
-    }
-}
+    //fn next<'a>(&'a mut self) -> Option<Self::Item<'a>> {
+        //if self.last_index > self.set_iterator.clone().into_iter().count() {
+            //None
+        //} else {
+            //self.last_index += 1;
+            //let it= Some(self.get_coded_symbol_ref(self.last_index-1));
+            //it
+        //}
+    //}
+//}
 
  impl<T, I> IntoIterator for RatelessIBLT<T, I>
  where
@@ -96,8 +95,26 @@ where
             self.last_index = 0;
             None
         } else {
-            let it= Some(self.irblt.get_coded_symbol(self.last_index).clone());
             self.last_index += 1;
+            let it= Some(self.irblt.get_coded_symbol(self.last_index-1));
+            it
+        }
+    }
+}
+impl<T,I> Generator for IntoIter<T,I>
+where
+    for<'a> T: 'a + symbol::Symbol,
+    for<'a> I: 'a + IntoIterator<Item = T> + Iterator + Clone,
+{
+    type Item<'a>=&'a CodedSymbol<T>;
+
+    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>> {
+        if self.last_index > self.irblt.set_iterator.clone().into_iter().count() {
+            self.last_index = 0;
+            None
+        } else {
+            self.last_index += 1;
+            let it= Some(self.irblt.get_coded_symbol_ref(self.last_index-1));
             it
         }
     }
@@ -153,6 +170,11 @@ where
         self.coded_symbols[index].clone()
     }
 
+    /// Returns the coded symbol at the provided index.
+    ///
+    /// It is expected that this will be called in a loop to stream the coded symbols to a remote server.
+    ///
+    /// If the index is greater than the current length of the coded symbols, we extend the coded symbols.
     pub fn get_coded_symbol_ref(&mut self, index: usize) -> &symbol::CodedSymbol<T> {
         if index >= self.coded_symbols.len() {
             self.extend_coded_symbols(index);
@@ -168,7 +190,6 @@ where
         let riblt = RatelessIBLT {
             coded_symbols: Vec::new(),
             set_iterator,
-            last_index: 0
         };
         riblt
     }
@@ -432,31 +453,6 @@ mod tests {
         assert_eq!(items_local.len()+1, temp_symbols.len())
     }
 
-    #[test]
-    fn test_riblt_into_iter_ref() {
-        use std::collections::HashSet;
-
-        let items_local: HashSet<SimpleSymbol> = HashSet::from([
-            SimpleSymbol { value: 7 },
-            SimpleSymbol { value: 15 },
-            SimpleSymbol { value: 16 },
-            SimpleSymbol { value: 2 },
-            SimpleSymbol { value: 1 },
-            SimpleSymbol { value: 5 },
-            SimpleSymbol { value: 17 },
-            SimpleSymbol { value: 2222 },
-        ]);
-
-        let mut iblt_local = RatelessIBLT::new(items_local.clone());
-
-        let mut temp_symbols: Vec<CodedSymbol<SimpleSymbol>> = Vec::new();
-
-        while let Some(cs) =  iblt_local.generate() {
-            dbg!(&cs);
-            temp_symbols.push(cs.clone());
-        }
-        assert_eq!(items_local.len()+1, temp_symbols.len())
-    }
 
     #[test]
     fn test_collapsing() {
