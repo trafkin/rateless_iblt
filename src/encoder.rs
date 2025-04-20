@@ -36,26 +36,6 @@ pub trait Iterable {
     fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;
 }
 
-//impl<T,I> Generator for RatelessIBLT<T,I> 
-    //where
-     //for <'a> T: 'a + symbol::Symbol,
-     //for <'a> I: 'a + IntoIterator<Item = T> + Clone,
- //{
-    ////type Item<'a> = &'a T;
-
-    //type Item<'a>=&'a CodedSymbol<T>;
-
-
-    //fn next<'a>(&'a mut self) -> Option<Self::Item<'a>> {
-        //if self.last_index > self.set_iterator.clone().into_iter().count() {
-            //None
-        //} else {
-            //self.last_index += 1;
-            //let it= Some(self.get_coded_symbol_ref(self.last_index-1));
-            //it
-        //}
-    //}
-//}
 
  impl<T, I> IntoIterator for RatelessIBLT<T, I>
  where
