@@ -1,5 +1,8 @@
+use std::ops::Deref;
+
 use crate::mapping;
 use crate::symbol;
+use crate::CodedSymbol;
 
 /// Constant for block size. 
 /// As it can be computationally expensive to iterate over the set, it makes sense to generate
@@ -15,6 +18,8 @@ pub const BLOCK_SIZE: usize = 1024;
 /// It is expected that the managed version will be used when we have access to the set
 /// The managed version will generate coded symbols as needed (for efficiencey, it will generate a 'block' of coded symbols at a time)
 /// The unmanaged version will be used whereever we don't have access to the set
+///
+#[derive(Clone)]
 pub struct RatelessIBLT<T, I>
 where
     T: symbol::Symbol,
@@ -22,20 +27,79 @@ where
 {
     pub coded_symbols: Vec<symbol::CodedSymbol<T>>,
     set_iterator: I,
+
 }
 
-// It might be nice to 'peel' the symbols out as an iterator
-// impl<T, I> Iterator for RatelessIBLT<T, I>
-// where
-//     T: symbol::Symbol,
-//     I: IntoIterator<Item = T> + Clone,
-// {
-//     type Item = T;
-// 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         todo!();
-//     }
-// }
+
+pub trait Iterable {
+    type Item<'a>: 'a where Self: 'a;
+    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;
+}
+
+
+ impl<T, I> IntoIterator for RatelessIBLT<T, I>
+ where
+     T: symbol::Symbol,
+     I: IntoIterator<Item = T> + Clone,
+ {
+
+     type Item = CodedSymbol<T>;
+     type IntoIter = IntoIter<T,I>;
+ 
+     fn into_iter(self) -> IntoIter<T,I> {
+        IntoIter {
+            last_index: 0,
+            irblt: Box::new(self)
+        }
+     }
+ }
+
+
+pub struct IntoIter<
+    T: symbol::Symbol,
+    I: IntoIterator<Item = T> + Clone >
+    {
+        irblt: Box<RatelessIBLT<T,I>>,
+        last_index: usize,
+    }
+
+impl<T,I> Iterator for IntoIter<T,I>
+where
+    T: symbol::Symbol,
+    I: IntoIterator<Item = T> + Clone,
+{
+    type Item=CodedSymbol<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.last_index > self.irblt.set_iterator.clone().into_iter().count() {
+            self.last_index = 0;
+            None
+        } else {
+            self.last_index += 1;
+            let it= Some(self.irblt.get_coded_symbol(self.last_index-1));
+            it
+        }
+    }
+}
+impl<T,I> Iterable for IntoIter<T,I>
+where
+    for<'a> T: 'a + symbol::Symbol,
+    for<'a> I: 'a + IntoIterator<Item = T> + Iterator + Clone,
+{
+    type Item<'a>=&'a CodedSymbol<T>;
+
+    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>> {
+        if self.last_index > self.irblt.set_iterator.clone().into_iter().count() {
+            self.last_index = 0;
+            None
+        } else {
+            self.last_index += 1;
+            let it= Some(self.irblt.get_coded_symbol_ref(self.last_index-1));
+            it
+        }
+    }
+}
+
 
 impl<T, I> RatelessIBLT<T, I>
 where
@@ -71,6 +135,7 @@ where
                 self.coded_symbols[i].apply(&item, symbol::Direction::Add);
             }
         }
+
     }
 
     /// Returns the coded symbol at the provided index.
@@ -85,12 +150,24 @@ where
         self.coded_symbols[index].clone()
     }
 
+    /// Returns the coded symbol at the provided index.
+    ///
+    /// It is expected that this will be called in a loop to stream the coded symbols to a remote server.
+    ///
+    /// If the index is greater than the current length of the coded symbols, we extend the coded symbols.
+    pub fn get_coded_symbol_ref(&mut self, index: usize) -> &symbol::CodedSymbol<T> {
+        if index >= self.coded_symbols.len() {
+            self.extend_coded_symbols(index);
+        }
+        &self.coded_symbols[index]
+    }
+
     /// Constructing a new RatelessIBLT requires a set of symbols that can be iterated over.
     /// The RatelessIBLT will generate coded symbols as needed. So this set may be iterated over multiple times.
     ///
     /// It is the responsibility of the calling code to create a new RatelessIBLT if the set changes.
     pub fn new(set_iterator: I) -> Self {
-        let mut riblt = RatelessIBLT {
+        let riblt = RatelessIBLT {
             coded_symbols: Vec::new(),
             set_iterator,
         };
@@ -169,18 +246,18 @@ where
     pub coded_symbols: Vec<symbol::CodedSymbol<T>>,
 }
 
-// It might be nice to 'peel' the symbols out as an iterator
-// impl<T> Iterator for UnmanagedRatelessIBLT<T>
-// where
-//     T: symbol::Symbol,
-// {
-//     type Item = T;
-// 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         //TODO
-//         None
-//     }
-// }
+
+impl<T> Deref for UnmanagedRatelessIBLT<T>
+where
+     T: symbol::Symbol,
+{
+    type Target = Vec<CodedSymbol<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.coded_symbols
+    }
+}
+
 impl<T> UnmanagedRatelessIBLT<T>
 where
     T: symbol::Symbol,
@@ -330,6 +407,32 @@ pub fn is_empty<T: symbol::Symbol>(block: &Vec<symbol::CodedSymbol<T>>) -> bool 
 mod tests {
     use super::*;
     use crate::test_helpers::SimpleSymbol;
+
+    #[test]
+    fn test_riblt_into_iter() {
+        use std::collections::HashSet;
+
+        let items_local: HashSet<SimpleSymbol> = HashSet::from([
+            SimpleSymbol { value: 7 },
+            SimpleSymbol { value: 15 },
+            SimpleSymbol { value: 16 },
+            SimpleSymbol { value: 2 },
+            SimpleSymbol { value: 1 },
+            SimpleSymbol { value: 5 },
+            SimpleSymbol { value: 17 },
+            SimpleSymbol { value: 2222 },
+        ]);
+
+        let iblt_local = RatelessIBLT::new(items_local.clone());
+
+        let mut temp_symbols: Vec<CodedSymbol<SimpleSymbol>> = Vec::new();
+
+        for cs in iblt_local.into_iter() {
+            temp_symbols.push(cs.clone());
+        }
+        assert_eq!(items_local.len()+1, temp_symbols.len())
+    }
+
 
     #[test]
     fn test_collapsing() {

@@ -2,9 +2,9 @@ mod encoder;
 mod mapping;
 mod symbol;
 
-pub use encoder::{RatelessIBLT, UnmanagedRatelessIBLT};
+pub use encoder::{RatelessIBLT, UnmanagedRatelessIBLT, Iterable};
 pub use mapping::RandomMapping;
-pub use symbol::{Symbol, CodedSymbol};
+pub use symbol::{Symbol, CodedSymbol, PeelableResult::*};
 
 #[cfg(test)]
 pub mod test_helpers {
